@@ -207,7 +207,7 @@ dats_full <- rbind(dats_UKR3, dats_BLR3)
 #============================================================
 
 # number of bootstraps
-n_boot <- 50
+n_boot <- 300
 
 cor.test(dats_full$mean, dats_full$roll_m)
 
@@ -252,9 +252,9 @@ dfdf <- lapply(1:n_boot, function (x) cbind(full_resampled[[x]], pred_full[[x]])
 
 #dfdf <- (do.call(rbind, full_resampled))
 #predictions_all <- data.frame(dfdf, 
-#                         prediction = c(unlist(pred_full)))
-predoo <- ddply(predictions_all, .(Sample.ID, year, mean, PA), summarize, 
-                meamN_pred = mean(prediction))
+                        # prediction = c(unlist(pred_full)))
+predoo <- ddply(dfdf, .(Sample.ID, year, mean, PA), summarize, 
+                meamN_pred = mean(prediction, na.rm = T))
 newdata <- predoo[order(predoo$meamN_pred),]
 
 # identify the threshold above which 90% of the samples are positive
