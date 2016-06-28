@@ -1,32 +1,62 @@
 library(RcppRoll)
 
-DDU <- function(x, t_seq = tseq,
-                subs = SUBS,
-                cum_temp = 130,
-                min_temp_thres = 14, mosquito_survival_period = 30){
+ddu_calculations <- function(x, 
+                             t_seq = tseq,
+                             suit = SUBS,
+                             cum_temp = 130,
+                             min_temp_thres = 14, # threshold for the development
+                             mosquito_survival_period = 30){
   
-  DDU <- ifelse(as.numeric(x) >= min_temp_thres, 
-                as.numeric(x) - min_temp_thres, 
-                0)
-  #
-  data_full_666 <- data.frame(year = year(t_seq), DDU_666 = DDU, SUBS)
+  # calculate daily DDUs
+  ddus <- ifelse(as.numeric(x) >= min_temp_thres, 
+                 as.numeric(x) - min_temp_thres, 
+                 0)
   
-  einsd_666 <- ddply(data_full_666, .(year), summarize, result = sum(DDU_666, na.rm = T))
+  ##########
+  # calculate the yearly sum of daily DDUs
+  ##########
   
+  # add information of the year and suitability to the daily DDU information
+  data_frame_daily_ddu <- data.frame(year = year(t_seq),
+                                     ddu = ddus,
+                                     suit)
   
+  # subset days in the suitability
+  data_frame_daily_ddu_sub <- subset(data_frame_daily_ddu, 
+                                   data_frame_daily_ddu[,3] > 0)
+  
+  # calculate yearly sum of daily DDUs
+  yearly_sum_ddus <- ddply(data_frame_daily_ddu_sub, .(year), 
+                           summarize, 
+                           result = sum(ddu, na.rm = T))
+  
+  ##########
+  # calculate potential days of transmission
+  ##########
   # cumulative sum of DDUs
-  DDU_cum <- roll_sum(DDU,
-                      n = mosquito_survival_period,
-                      fill = 0, align = "right")
+  daily_cum_ddu <- roll_sum(ddus,
+                            n = mosquito_survival_period,
+                            fill = 0,
+                            align = "right")
   
-  DDU_pos <- ifelse(DDU_cum >= cum_temp, 1, 0)
+  # identify days, which reach the threshold of cumulative DDUs
+  ddu_pos <- ifelse(daily_cum_ddu >= cum_temp, 1, 0)
   
-  #
-  data_full <- data.frame(year = year(t_seq), DDU_pos = DDU_pos, SUBS)
+  # add information of the year and suitability to the days, 
+  # which reach the threshold of cumulative DDUs
+  data_frame_cum_ddu <- data.frame(year = year(t_seq),
+                                   ddu_pos = ddu_pos,
+                                   suit)
   
-  data_full_2 <- subset(data_full, data_full[,3] > 0)
+  # subset days in the suitability
+  data_frame_cum_ddu_sub <- subset(data_frame_cum_ddu, 
+                                   data_frame_cum_ddu[,3] > 0)
   
-  einsd <- ddply(data_full_2, .(year), summarize, result = sum(DDU_pos, na.rm = T))
+  # calculate yearly sum of days allow transmission
+  yearly_sum_of_cum_ddu <- ddply(data_frame_cum_ddu_sub, .(year),
+                                 summarize,
+                                 result = sum(ddu_pos, na.rm = T))
   
-  c(einsd$result, einsd_666$result)
+  # output
+  c(yearly_sum_of_cum_ddu$result, yearly_sum_ddus$result)
 }
